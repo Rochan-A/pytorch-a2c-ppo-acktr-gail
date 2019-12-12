@@ -52,6 +52,8 @@ class Policy(nn.Module):
         raise NotImplementedError
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
+        inputs = inputs.unsqueeze(1)
+        #print(inputs.shape)
         value, actor_features, rnn_hxs = self.base(inputs, rnn_hxs, masks)
         dist = self.dist(actor_features)
 
@@ -66,10 +68,14 @@ class Policy(nn.Module):
         return value, action, action_log_probs, rnn_hxs
 
     def get_value(self, inputs, rnn_hxs, masks):
+        inputs = inputs.unsqueeze(1)
+        #print(inputs.shape)
         value, _, _ = self.base(inputs, rnn_hxs, masks)
         return value
 
     def evaluate_actions(self, inputs, rnn_hxs, masks, action):
+        inputs = inputs.unsqueeze(1)
+        #print(inputs.shape)
         value, actor_features, rnn_hxs = self.base(inputs, rnn_hxs, masks)
         dist = self.dist(actor_features)
 
@@ -165,6 +171,10 @@ class NNBase(nn.Module):
 
         return x, hxs
 
+class Flatten2(torch.nn.Module):
+    def forward(self, x):
+        batch_size = x.shape[0]
+        return x.view(batch_size, 64, 12, 12)
 
 class CNNBase(NNBase):
     def __init__(self, num_inputs, recurrent=False, hidden_size=512):
@@ -174,10 +184,10 @@ class CNNBase(NNBase):
                                constant_(x, 0), nn.init.calculate_gain('relu'))
 
         self.main = nn.Sequential(
-            init_(nn.Conv2d(num_inputs, 32, 8, stride=4)), nn.ReLU(),
-            init_(nn.Conv2d(32, 64, 4, stride=2)), nn.ReLU(),
+            init_(nn.Conv3d(1, 32, (3, 8, 8), stride=3)), nn.ReLU(),
+            init_(nn.Conv3d(32, 64, 4, stride=2)), nn.ReLU(), Flatten2(),
             init_(nn.Conv2d(64, 32, 3, stride=1)), nn.ReLU(), Flatten(),
-            init_(nn.Linear(32 * 7 * 7, hidden_size)), nn.ReLU())
+            init_(nn.Linear(32 * 10 * 10, hidden_size)), nn.ReLU())
 
         init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
                                constant_(x, 0))
