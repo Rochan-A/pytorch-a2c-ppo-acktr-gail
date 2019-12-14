@@ -149,6 +149,26 @@ def get_args():
         action='store_true',
         default=False,
         help='use a linear schedule on the learning rate')
+    parser.add_argument(
+        '--use-rgb',
+        action='store_true',
+        default=False,
+        help='use 3D conv kernels')
+    parser.add_argument(
+        '--use-segm',
+        action='store_true',
+        default=False,
+        help='use segmentation on RGB frames')
+    parser.add_argument(
+        '--use-unsup-segm',
+        action='store_true',
+        default=False,
+        help='use unsupervised segmentation on RGB frames')
+    parser.add_argument(
+        '--use-feov',
+        action='store_true',
+        default=False,
+        help='use feature extracted object vector')
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()

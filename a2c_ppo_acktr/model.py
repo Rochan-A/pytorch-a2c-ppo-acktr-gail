@@ -13,14 +13,29 @@ class Flatten(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None):
+    def __init__(self, obs_shape, action_space,
+        use_rgb,
+        use_segm,
+        use_unsup_segm,
+        use_feov,
+        base=None, base_kwargs=None):
         super(Policy, self).__init__()
         if base_kwargs is None:
             base_kwargs = {}
+
+        self.use_rgb = use_rgb
+        self.use_segm = use_segm
+        self.use_unsup_segm = use_unsup_segm
+        self.use_feov = use_feov
+
         if base is None:
             if len(obs_shape) == 3:
-                base = CNNBase
-            elif len(obs_shape) == 1:
+                if (self.use_rgb or self.use_segm or self.use_unsup_segm) and not self.use_feov:
+                    base = CNNBase3D
+                else:
+                    base = CNNBase
+
+            elif len(obs_shape) == 1 or self.use_feov is True:
                 base = MLPBase
             else:
                 raise NotImplementedError
@@ -52,8 +67,9 @@ class Policy(nn.Module):
         raise NotImplementedError
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
-        inputs = inputs.unsqueeze(1)
-        #print(inputs.shape)
+        if self.use_rgb or self.use_segm or self.use_unsup_segm:
+            inputs = inputs.unsqueeze(1)
+
         value, actor_features, rnn_hxs = self.base(inputs, rnn_hxs, masks)
         dist = self.dist(actor_features)
 
@@ -68,14 +84,14 @@ class Policy(nn.Module):
         return value, action, action_log_probs, rnn_hxs
 
     def get_value(self, inputs, rnn_hxs, masks):
-        inputs = inputs.unsqueeze(1)
-        #print(inputs.shape)
+        if self.use_rgb or self.use_segm or self.use_unsup_segm:
+            inputs = inputs.unsqueeze(1)
         value, _, _ = self.base(inputs, rnn_hxs, masks)
         return value
 
     def evaluate_actions(self, inputs, rnn_hxs, masks, action):
-        inputs = inputs.unsqueeze(1)
-        #print(inputs.shape)
+        if self.use_rgb or self.use_segm or self.use_unsup_segm:
+            inputs = inputs.unsqueeze(1)
         value, actor_features, rnn_hxs = self.base(inputs, rnn_hxs, masks)
         dist = self.dist(actor_features)
 
@@ -184,6 +200,34 @@ class CNNBase(NNBase):
                                constant_(x, 0), nn.init.calculate_gain('relu'))
 
         self.main = nn.Sequential(
+            init_(nn.Conv2d(num_inputs, 32, 8, stride=4)), nn.ReLU(),
+            init_(nn.Conv2d(32, 64, 4, stride=2)), nn.ReLU(),
+            init_(nn.Conv2d(64, 32, 3, stride=1)), nn.ReLU(), Flatten(),
+            init_(nn.Linear(32 * 7 * 7, hidden_size)), nn.ReLU())
+
+        init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
+                               constant_(x, 0))
+
+        self.critic_linear = init_(nn.Linear(hidden_size, 1))
+
+        self.train()
+
+    def forward(self, inputs, rnn_hxs, masks):
+        x = self.main(inputs / 255.0)
+
+        if self.is_recurrent:
+            x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
+
+        return self.critic_linear(x), x, rnn_hxs
+
+class CNNBase3D(NNBase):
+    def __init__(self, num_inputs, recurrent=False, hidden_size=512):
+        super(CNNBase3D, self).__init__(recurrent, hidden_size, hidden_size)
+
+        init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
+                               constant_(x, 0), nn.init.calculate_gain('relu'))
+
+        self.main = nn.Sequential(
             init_(nn.Conv3d(1, 32, (3, 8, 8), stride=3)), nn.ReLU(),
             init_(nn.Conv3d(32, 64, 4, stride=2)), nn.ReLU(), Flatten2(),
             init_(nn.Conv2d(64, 32, 3, stride=1)), nn.ReLU(), Flatten(),
@@ -203,7 +247,6 @@ class CNNBase(NNBase):
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
 
         return self.critic_linear(x), x, rnn_hxs
-
 
 class MLPBase(NNBase):
     def __init__(self, num_inputs, recurrent=False, hidden_size=64):
