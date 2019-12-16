@@ -57,8 +57,12 @@ def make_env(env_id, seed, rank, log_dir, allow_early_resets, args):
 
         if is_atari:
             if len(env.observation_space.shape) == 3:
-                env = wrap_deepmind(env, use_rgb=args.use_rgb, use_segm=args.use_segm,
-                                        use_unsup_segm=args.use_unsup_segm, use_feov=args.use_feov)
+                env = wrap_deepmind(env, use_rgb=args.use_rgb,
+                                    use_segm=args.use_segm,
+                                    use_unsup_segm=args.use_unsup_segm,
+                                    use_feov=args.use_feov,
+                                    num_objects=args.num_objects,
+                                    object_set=args.obj_set)
         elif len(env.observation_space.shape) == 3:
             raise NotImplementedError(
                 "CNN models work only for atari,\n"

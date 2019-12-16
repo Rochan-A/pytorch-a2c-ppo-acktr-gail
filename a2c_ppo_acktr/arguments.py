@@ -169,6 +169,16 @@ def get_args():
         action='store_true',
         default=False,
         help='use feature extracted object vector')
+    parser.add_argument(
+        '--obj-set',
+        type=str,
+        default=None,
+        help='Specify path to object set file')
+    parser.add_argument(
+        '--num-objects',
+        type=int,
+        default=3,
+        help='Number of Objects')
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
