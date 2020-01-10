@@ -36,7 +36,7 @@ class Policy(nn.Module):
                     base = CNNBase
 
             elif self.use_feov is True:
-                base = MLPBaseTime
+                base = MLPBase
 
             elif len(obs_shape) == 1:
                 base = MLPBase
