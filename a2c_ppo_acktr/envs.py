@@ -97,11 +97,11 @@ def make_vec_envs(args, device, allow_early_resets, num_frame_stack=None):
     else:
         envs = DummyVecEnv(envs)
 
-    if len(envs.observation_space.shape) == 1:
-        if gamma is None:
-            envs = VecNormalize(envs, ret=False)
-        else:
-            envs = VecNormalize(envs, gamma=gamma)
+    #if len(envs.observation_space.shape) == 1:
+    #    if gamma is None:
+    #        envs = VecNormalize(envs, ret=False)
+    #    else:
+    #        envs = VecNormalize(envs, gamma=gamma)
 
     envs = VecPyTorch(envs, device)
 
